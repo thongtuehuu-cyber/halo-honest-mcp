@@ -1,0 +1,24 @@
+name: Honest-MCP CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest pyyaml
+      - name: Build deterministic dataset
+        run: python dataset_builder.py
+      - name: Run 40-scenario stdio JSON-RPC benchmark
+        run: python eval_benchmark.py --mode dry-run --output data/eval_results.json
+      - name: Run pytest suite
+        run: python -m pytest tests/test_honest_mcp_entry.py -v

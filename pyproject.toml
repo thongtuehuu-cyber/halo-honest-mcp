@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "honest-mcp-halo"
+version = "0.1.0"
+description = "Honest-MCP Agent: Async Environmental GRPO + White Circle Policy Grading for Halo"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pyyaml>=6.0"]
+modal = ["modal>=0.64"]

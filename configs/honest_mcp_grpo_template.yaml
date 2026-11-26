@@ -1,0 +1,106 @@
+# Halo Environmental GRPO template for Honest-MCP Agent
+# Targets: #17 White Circle, #16 Lovable, #8/#10 Post-Train (Inkling / Nemotron), #11 Modal, #14 OpenRouter
+#
+# Usage (after registering via install_into_halo.py and syncing policies):
+#   WHITECIRCLE_API_KEY=wc-... halo run create-whitecircle-policies \
+#     --environment-id $WHITECIRCLE_ENV_ID \
+#     --policies halo_competition/honest_mcp_entry/configs/whitecircle_honesty_policies.json
+#   WHITECIRCLE_API_KEY=wc-... halo launch grpo/environmental \
+#     halo_competition/honest_mcp_entry/configs/honest_mcp_grpo_template.yaml
+
+# --- Model & Engine ---
+model_name_or_path: thinkingmachines/Inkling-2-Mini-Instruct  # swap to NVIDIA Nemotron / Mistral per Discord track density
+environment_type: honest_mcp
+max_turns: 4
+rollout_backend: vllm
+rollout_temperature: 0.7
+rollout_top_p: 0.95
+rollout_thinking: false
+
+# --- Rewards (top-level list; maps to EnvironmentTerm + WhiteCircleTerm in halo/rewards/terms.py) ---
+# Run `halo run create-whitecircle-policies --environment-id <id> --policies configs/whitecircle_honesty_policies.json`
+# and optionally paste the printed `checklist:` / `policies:` ID lists below for fine-grained reward metrics.
+rewards:
+  - source: environment
+    weight: 0.6
+  - source: whitecircle
+    name: mcp_honesty
+    environment_id: "${WHITECIRCLE_ENV_ID}"
+    # checklist: [<5 item policy ids printed by create-whitecircle-policies>]
+    region: us
+    view: full
+    on_error: neutral
+    request_timeout: 30.0
+    max_concurrency: 8
+    max_retries: 4
+    retry_wait: 1.0
+    weight: 0.4
+
+# --- Environment kwargs ---
+environment_kwargs:
+  transport: stdio
+  max_observation_chars: 8192
+  tool_success_reward: 0.05
+  tool_error_penalty: 0.0
+  tool_reward_cap: 0.2
+
+# --- Dataset ---
+dataset:
+  - halo_competition/honest_mcp_entry/data/honest_mcp_train.jsonl
+eval_dataset:
+  - halo_competition/honest_mcp_entry/data/honest_mcp_eval.jsonl
+prompt_field: prompt
+answer_field: answer
+context_fields:
+  - scenario_id
+  - domain
+  - tool_name
+  - fault_id
+  - required_keys
+  - clean_payload
+  - expected_facts
+
+# --- Sequence Lengths ---
+max_prompt_length: 2048
+max_completion_length: 1024
+
+# --- GRPO ---
+num_generations: 4
+beta: 0.04  # KL regularization per halo-whitecircle-cookbook.md to prevent boilerplate refusal collapse
+num_iterations: 1
+epsilon: 0.2
+scale_rewards: batch
+drop_degenerate_groups: true
+
+# --- Training ---
+per_device_train_batch_size: 2
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 4
+num_train_epochs: 2.0
+learning_rate: 5.0e-06
+lr_scheduler_type: cosine
+warmup_steps: 20
+
+# --- PEFT / LoRA ---
+use_peft: true
+lora_r: 32
+lora_alpha: 64
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+lora_task_type: CAUSAL_LM
+
+# --- Output & Trajectory Export (for Lovable Arena) ---
+output_dir: /vol/halo_runs/honest-mcp-grpo
+eval_strategy: steps
+eval_steps: 50
+save_total_limit: 3
+save_only_model: true
+logging_steps: 1
+logging_first_step: true
+report_to: none
+log_completions: true
+save_completions: true
+num_completions_to_print: 4
